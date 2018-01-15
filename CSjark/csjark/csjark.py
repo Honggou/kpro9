@@ -333,6 +333,7 @@ def create_dissector(filename, platform, folders=None, includes=None):
     """
     try:
         text = cpp.parse_file(filename, platform, folders, includes)
+        #print(text)
         ast = cparser.parse(text, filename)
         cparser.find_structs(ast, platform)
     except OSError:
@@ -393,6 +394,7 @@ def write_dissectors_to_file(all_protocols):
         def find_proto(proto):
             found = []
             # Possible endless loop?
+            #for dissector in proto:
             for child in proto.children:
                 if isinstance(child, ProtocolField):
                     found.append(child.proto.name)
@@ -401,8 +403,9 @@ def write_dissectors_to_file(all_protocols):
 
         protocols = {p.name: p for p in protocols.values() if p.id}
         for proto in list(protocols.values()):
-            names = find_proto(proto.dissectors.values())
-            protocols.update({name: all_protocols[name] for name in names})
+            for dissector in list(proto.dissectors.values()):
+                names = find_proto(dissector)
+                protocols.update({name: all_protocols[name] for name in names})
 
     # Generate and write lua dissectors
     for name, proto in protocols.items():

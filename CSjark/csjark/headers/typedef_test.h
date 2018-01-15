@@ -1,9 +1,13 @@
 #define NUMFIVE 5
 #define NUMTHREE 3
 
+#pragma pack(push)
+#pragma pack(1)
+
 typedef struct twoints {
     int a;
     int b;
+    char c;
 } twoints;
 
 typedef enum media { FLOPPY = 1, CD = 3, DVD = 5 } media;
@@ -36,3 +40,5 @@ struct typedef_test {
     TWOAGEUNION l;
     double m;
 };
+
+#pragma pack(pop)

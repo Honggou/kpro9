@@ -131,16 +131,16 @@ class StructVisitor(c_ast.NodeVisitor):
 
         # Find the member definitions
         for decl in node.children():
-            child = decl.children()[0]
-
-            if isinstance(child, c_ast.TypeDecl):
-                self.handle_type_decl(child, proto)
-            elif isinstance(child, c_ast.ArrayDecl):
-                self.handle_array(proto, *self.handle_array_decl(child))
-            elif isinstance(child, c_ast.PtrDecl):
-                self.handle_pointer(child, proto)
-            else:
-                raise ParseError('Unknown struct member: %s' % repr(child))
+            for child in decl[1].children():
+                child = child[1]
+                if isinstance(child, c_ast.TypeDecl):
+                    self.handle_type_decl(child, proto)
+                elif isinstance(child, c_ast.ArrayDecl):
+                    self.handle_array(proto, *self.handle_array_decl(child))
+                elif isinstance(child, c_ast.PtrDecl):
+                    self.handle_pointer(child, proto)
+                else:
+                    raise ParseError('Unknown struct member: %s' % repr(child))
 
     def visit_Enum(self, node):
         """Visit a Enum node in the AST."""
@@ -156,12 +156,15 @@ class StructVisitor(c_ast.NodeVisitor):
         # Find id:name of members
         members = {}
         i = -1
-        for child in node.children()[0].children():
-            if child.children():
-                i = int(child.children()[0].value)
-            else:
-                i += 1
-            members[i] = child.name
+        for enum_list in node.children():
+            enum_list = enum_list[1]
+            for enum_value in enum_list.children():
+                enum_value = enum_value[1]
+                if (len(enum_value.children()) > 0):
+                    i = int(enum_value.children()[0][1].value)
+                else:
+                    i += 1
+                members[i] = enum_value.name
 
         self.enums[node.name] = members
 
@@ -173,21 +176,27 @@ class StructVisitor(c_ast.NodeVisitor):
         self._register_type(node) # Register as known type
 
         # Find the type
-        child = node.children()[0].children()[0]
-        if isinstance(child, c_ast.IdentifierType):
-            ctype = self._get_type(child)
-            self.aliases[node.name] = self.aliases.get(ctype, (None, ctype))
-        elif isinstance(child, c_ast.Enum):
-            self.aliases[node.name] = ('enum', child.name)
-        elif isinstance(child, c_ast.Struct):
-            self.aliases[node.name] = ('struct', child.name)
-        elif isinstance(child, c_ast.Union):
-            self.aliases[node.name] = ('union', child.name)
-        elif isinstance(node.children()[0], c_ast.ArrayDecl):
-            values = self.handle_array_decl(node.children()[0])
-            self.aliases[node.name] = ('array', values)
-        else:
-            raise ParseError('Unknown typedef type: %s' % child)
+        #child = node.children()[0].children()[0]
+        for node_value in node.children():
+            child = node_value[1].children()[0][1]
+            if isinstance(child, c_ast.TypeDecl):
+                child = child.type
+                ctype = self._get_type(child)
+                self.aliases[node.name] = self.aliases.get(ctype, (None, ctype))
+            elif isinstance(child, c_ast.IdentifierType):
+                ctype = self._get_type(child)
+                self.aliases[node.name] = self.aliases.get(ctype, (None, ctype))
+            elif isinstance(child, c_ast.Enum):
+                self.aliases[node.name] = ('enum', child.name)
+            elif isinstance(child, c_ast.Struct):
+                self.aliases[node.name] = ('struct', child.name)
+            elif isinstance(child, c_ast.Union):
+                self.aliases[node.name] = ('union', child.name)
+            elif isinstance(node.children()[0], c_ast.ArrayDecl):
+                values = self.handle_array_decl(node.children()[0])
+                self.aliases[node.name] = ('array', values)
+            else:
+                raise ParseError('Unknown typedef type: %s' % child)
 
     def visit_TypeDecl(self, node):
         """Keep track of Type Declaration nodes."""
@@ -197,7 +206,7 @@ class StructVisitor(c_ast.NodeVisitor):
 
     def handle_type_decl(self, node, proto):
         """Find member details in a type declaration."""
-        child = node.children()[0]
+        child = node.children()[0][1]
 
         # Identifier member, simple type or typedef type
         if isinstance(child, c_ast.IdentifierType):
@@ -244,26 +253,25 @@ class StructVisitor(c_ast.NodeVisitor):
         """
         if depth is None:
             depth = []
-        child = node.children()[0]
-
-        size = self._get_array_size(node.children()[1])
+        child = node.children()[0][1]
+        size = self._get_array_size(node.children()[1][1])
 
         # String array
         if (isinstance(child, c_ast.TypeDecl) and
-                hasattr(child.children()[0], 'names') and
-                child.children()[0].names[0] == 'char'): #hack
+                hasattr(child.children()[0][1], 'names') and
+                child.children()[0][1].names[0] == 'char'): #hack
             size *= self.size_of('char')
             return depth, self._create_field(child.declname, 'string', size, 0)
 
         # Multidimensional, handle recursively
         if isinstance(child, c_ast.ArrayDecl):
-            if size > 1:
+            if size > 0:
                 depth.append(size)
             return self.handle_array_decl(child, depth)
 
         # Single dimensional normal array
         depth.append(size)
-        sub_child = child.children()[0]
+        sub_child = child.children()[0][1]
 
         if isinstance(sub_child, c_ast.IdentifierType):
             ctype = self._get_type(sub_child)
@@ -315,7 +323,7 @@ class StructVisitor(c_ast.NodeVisitor):
 
     def handle_pointer(self, node, proto):
         """Find member details in a pointer declaration."""
-        return self.handle_field(proto, node.children()[0].declname, 'pointer')
+        return self.handle_field(proto, node.children()[0][1].declname, 'pointer')
 
     def handle_enum(self, proto, name, enum):
         """Add an EnumField to the protocol."""
@@ -413,7 +421,9 @@ class StructVisitor(c_ast.NodeVisitor):
 
     def _get_type(self, node):
         """Get the C type from a node."""
-        return ' '.join(reversed(node.names))
+        #print('node.names=%s' %node.names)
+        #return ' '.join(reversed(node.names))
+        return ' '.join(node.names)
 
     def _get_array_size(self, node):
         """Calculate the size of the array."""

@@ -32,3 +32,4 @@ yacctab.py
 /CSjark/csjark/*.lua
 /CSjark/csjark/tmp
 /CSjark/csjark/test/*.lua
+*.vscode

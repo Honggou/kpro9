@@ -144,6 +144,8 @@ DEFAULT_C_TYPE_MAP = {
         'pointer': 'int32',
         'enum': 'uint32',
         'time_t': 'relative_time',
+        'char unsigned': 'uint8',
+        'int unsigned': "uint32",
 }
 
 
@@ -183,6 +185,8 @@ DEFAULT_C_SIZE_MAP = {
         'pointer': 4,
         'enum': 4,
         'time_t': 4,
+        'char unsigned': 1,
+        'int unsigned': 4,
 }
 
 
@@ -222,6 +226,8 @@ DEFAULT_C_ALIGNEMT_SIZE_MAP = {
         'pointer': 4,
         'enum': 4,
         'time_t': 4,
+        'char unsigned': 1,
+        'int unsigned': 4,
 }
 
 # Custom C sizes
