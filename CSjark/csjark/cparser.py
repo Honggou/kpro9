@@ -33,6 +33,7 @@ This module requires PLY 3.4 and pycparser 2.07.
 """
 import os
 import operator
+import re
 
 from pycparser import c_ast, c_parser, plyparser
 
@@ -93,6 +94,8 @@ class StructVisitor(c_ast.NodeVisitor):
         self.size_of = platform.size_of
         self.alignment = platform.alignment
 
+        self.pragma_pack_size_list = []
+
         self.enums = {} # All enums encountered in this AST
         self.aliases = {} # Typedefs and their base type
         self.type_decl = [] # Queue of current type declaration
@@ -104,6 +107,17 @@ class StructVisitor(c_ast.NodeVisitor):
     def visit_Union(self, node):
         """Visit a Union node in the AST."""
         self._visit_nodes(node, union=True)
+
+    def visit_Pragma(self, node):
+        if isinstance(node, c_ast.Pragma):
+            if ("pack(pop)" == node.string) and len(self.pragma_pack_size_list) > 0:
+                self.pragma_pack_size_list.pop()
+            else:
+                result = re.match(r"(pack\()([0-9])(\))", node.string)
+                if result is not None:
+                    pack_size = int(result.group(2))
+                    if 0 == (pack_size & (pack_size -1)):
+                        self.pragma_pack_size_list.append(pack_size)
 
     def _visit_nodes(self, node, union=False):
         """Visit a node in the tree."""
@@ -336,6 +350,9 @@ class StructVisitor(c_ast.NodeVisitor):
                 alignment = self.alignment(ctype)
             except ValueError :
                 alignment = size # Assume that the alignment is the same as the size
+
+        if len(self.pragma_pack_size_list) > 0:
+            alignment = min(self.pragma_pack_size_list[-1], alignment)
 
         endian = self.platform.endian
         if proto.conf is None:

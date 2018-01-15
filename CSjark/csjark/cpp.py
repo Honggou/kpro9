@@ -110,7 +110,8 @@ def parse_file(filename, platform=None, folders=None, includes=None):
 
 def post_cpp(lines):
     """Perform a post preprocessing step, removing unsupported C code."""
-    tokens = ('#pragma', '__extension__', '__attribute', '__inline__')
+    #tokens = ('#pragma', '__extension__', '__attribute', '__inline__')
+    tokens = ('__extension__', '__attribute', '__inline__')
     for i, line in enumerate(lines):
         for token in tokens:
             if token in line:
